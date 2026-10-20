@@ -1,0 +1,6 @@
+{
+  "name": "Disney+ Stream Player",
+  "description": "Plataforma de streaming interactiva con reproductor compatible con YouTube, catálogo de universos y panel de administración.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
