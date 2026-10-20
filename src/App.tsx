@@ -1572,9 +1572,6 @@ export default function App() {
   const [editingVideo, setEditingVideo] = useState<Partial<VideoItem> | null>(null);
   const [editingBrand, setEditingBrand] = useState<Brand | null>(null);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
-  const [videoToDelete, setVideoToDelete] = useState<VideoItem | null>(null);
-  const [showClearAllVideosModal, setShowClearAllVideosModal] = useState(false);
-  const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
   // Persist storage safely without crashing on quota exceeded
@@ -1666,13 +1663,8 @@ export default function App() {
   };
 
   const handleDeleteVideo = (video: VideoItem) => {
-    setVideoToDelete(video);
-  };
-
-  const confirmDeleteVideo = () => {
-    if (!videoToDelete) return;
-    const id = videoToDelete.id;
-    const deletedTitle = videoToDelete.title;
+    const id = video.id;
+    const deletedTitle = video.title;
     setVideos(prev => {
       const updated = prev.filter(v => v.id !== id);
       safeSetStorage('dplus_videos', updated);
@@ -1686,22 +1678,43 @@ export default function App() {
     if (activeVideoModal?.id === id) {
       setActiveVideoModal(null);
     }
-    setVideoToDelete(null);
-    showToast(`Video "${deletedTitle}" eliminado del catálogo`);
+    if (editingVideo?.id === id) {
+      setEditingVideo(null);
+    }
+    showToast(`"${deletedTitle}" eliminado`);
   };
 
-  const confirmDeleteAllVideos = () => {
+  const handleClearAllVideos = () => {
     setVideos([]);
     setWatchlist([]);
     safeSetStorage('dplus_videos', []);
     safeSetStorage('dplus_watchlist', []);
-    setActiveVideoModal(null);
-    setShowClearAllVideosModal(false);
-    showToast('Todos los videos fueron eliminados del catálogo');
+    if (activeVideoModal) setActiveVideoModal(null);
+    if (editingVideo) setEditingVideo(null);
+    showToast('Catálogo vaciado');
   };
 
   const handleResetDefaults = () => {
-    setShowResetConfirmModal(true);
+    try {
+      localStorage.clear();
+      safeSetStorage('dplus_branding', DEFAULT_BRANDING);
+      safeSetStorage('dplus_brands', DEFAULT_BRANDS);
+      safeSetStorage('dplus_videos', DEFAULT_VIDEOS);
+      safeSetStorage('dplus_plans', DEFAULT_PLANS);
+      safeSetStorage('dplus_users', DEFAULT_USERS);
+      safeSetStorage('dplus_watchlist', ['v1', 'v3']);
+    } catch (e) {
+      console.error(e);
+    }
+    setBranding(DEFAULT_BRANDING);
+    setBrands(DEFAULT_BRANDS);
+    setVideos(DEFAULT_VIDEOS);
+    setPlans(DEFAULT_PLANS);
+    setUsers(DEFAULT_USERS);
+    setWatchlist(['v1', 'v3']);
+    if (activeVideoModal) setActiveVideoModal(null);
+    if (editingVideo) setEditingVideo(null);
+    showToast('Valores predeterminados restaurados');
   };
 
   // Preview helper in video editor modal
@@ -2325,7 +2338,7 @@ export default function App() {
                   <div className="flex items-center space-x-2">
                     {videos.length > 0 && (
                       <button
-                        onClick={() => setShowClearAllVideosModal(true)}
+                        onClick={handleClearAllVideos}
                         className="px-3.5 py-2.5 bg-red-950/40 hover:bg-red-900/60 text-red-300 hover:text-white border border-red-800/50 rounded-xl text-xs font-bold flex items-center space-x-1.5 transition"
                         title="Eliminar todos los videos del catálogo"
                       >
@@ -2863,8 +2876,7 @@ export default function App() {
                       type="button"
                       onClick={() => {
                         const v = videos.find(item => item.id === editingVideo.id) || (editingVideo as VideoItem);
-                        setEditingVideo(null);
-                        setVideoToDelete(v);
+                        handleDeleteVideo(v);
                       }}
                       className="px-4 py-2 bg-red-950/60 hover:bg-red-900 text-red-300 hover:text-white border border-red-800/60 rounded-xl font-bold text-xs flex items-center space-x-1.5 transition"
                       title="Eliminar este video del catálogo"
@@ -3042,164 +3054,6 @@ export default function App() {
                   Guardar Plan
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom In-App Delete Video Confirmation Modal */}
-      {videoToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#161926] border border-red-500/40 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl relative">
-            <button
-              onClick={() => setVideoToDelete(null)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center space-x-3 text-red-400">
-              <div className="p-3 bg-red-950/60 border border-red-800/50 rounded-full">
-                <Trash2 size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white">¿Eliminar este video?</h3>
-                <p className="text-xs text-gray-400">Esta acción removerá el contenido del catálogo permanentemente.</p>
-              </div>
-            </div>
-
-            <div className="p-3 bg-gray-950 rounded-xl border border-gray-800 flex items-center space-x-3">
-              <img 
-                src={getVideoPoster(videoToDelete)} 
-                alt={videoToDelete.title} 
-                className="w-12 h-16 object-cover rounded-lg flex-shrink-0" 
-              />
-              <div className="overflow-hidden">
-                <span className="text-[10px] font-extrabold text-blue-400 uppercase">{videoToDelete.brand} • {videoToDelete.type}</span>
-                <h4 className="text-sm font-bold text-white truncate">{videoToDelete.title}</h4>
-                <p className="text-[10px] text-gray-400">{videoToDelete.duration} • {videoToDelete.genre}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-2">
-              <button
-                type="button"
-                onClick={() => setVideoToDelete(null)}
-                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteVideo}
-                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg shadow-red-950/50 transition flex items-center space-x-1.5"
-              >
-                <Trash2 size={14} />
-                <span>Sí, Eliminar</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete All Catalog Videos Modal */}
-      {showClearAllVideosModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#161926] border border-red-500/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl relative">
-            <button
-              onClick={() => setShowClearAllVideosModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center space-x-3 text-red-400">
-              <div className="p-3 bg-red-950/60 border border-red-800/50 rounded-full">
-                <Trash2 size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white">¿Borrar todo el catálogo?</h3>
-                <p className="text-xs text-gray-400">Se eliminarán los {videos.length} videos actualmente en la plataforma. Podrás restaurarlos con 'Restablecer Fábrica'.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowClearAllVideosModal(false)}
-                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={confirmDeleteAllVideos}
-                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition flex items-center space-x-1.5"
-              >
-                <Trash2 size={14} />
-                <span>Borrar Todos</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Custom Reset to Defaults Confirmation Modal */}
-      {showResetConfirmModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-[#161926] border border-amber-500/40 rounded-2xl p-6 max-w-md w-full space-y-4 shadow-2xl relative">
-            <button
-              onClick={() => setShowResetConfirmModal(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="flex items-center space-x-3 text-amber-400">
-              <div className="p-3 bg-amber-950/60 border border-amber-800/50 rounded-full">
-                <RefreshCw size={24} />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white">¿Restablecer de fábrica?</h3>
-                <p className="text-xs text-gray-400">Se restaurarán todos los videos originales y la configuración inicial.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3">
-              <button
-                type="button"
-                onClick={() => setShowResetConfirmModal(false)}
-                className="px-4 py-2.5 bg-gray-800 hover:bg-gray-700 text-gray-300 rounded-xl text-xs font-bold transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  try {
-                    localStorage.clear();
-                    safeSetStorage('dplus_branding', DEFAULT_BRANDING);
-                    safeSetStorage('dplus_brands', DEFAULT_BRANDS);
-                    safeSetStorage('dplus_videos', DEFAULT_VIDEOS);
-                    safeSetStorage('dplus_plans', DEFAULT_PLANS);
-                    safeSetStorage('dplus_users', DEFAULT_USERS);
-                    safeSetStorage('dplus_watchlist', ['v1', 'v3']);
-                  } catch (e) {
-                    console.error(e);
-                  }
-                  setBranding(DEFAULT_BRANDING);
-                  setBrands(DEFAULT_BRANDS);
-                  setVideos(DEFAULT_VIDEOS);
-                  setPlans(DEFAULT_PLANS);
-                  setUsers(DEFAULT_USERS);
-                  setWatchlist(['v1', 'v3']);
-                  setShowResetConfirmModal(false);
-                  showToast('Sistema restablecido a valores predeterminados');
-                }}
-                className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white rounded-xl text-xs font-black uppercase tracking-wider shadow-lg transition"
-              >
-                Restablecer Todo
-              </button>
             </div>
           </div>
         </div>
