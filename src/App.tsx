@@ -239,9 +239,11 @@ function parseYouTubeSource(input: string): {
   embedUrl: string | null;
   directUrl: string | null;
   startTime: number | null;
+  isDirectVideo?: boolean;
+  videoSourceUrl?: string | null;
 } {
   if (!input) {
-    return { videoId: null, embedUrl: null, directUrl: null, startTime: null };
+    return { videoId: null, embedUrl: null, directUrl: null, startTime: null, isDirectVideo: false, videoSourceUrl: null };
   }
 
   const trimmed = input.trim();
@@ -252,6 +254,19 @@ function parseYouTubeSource(input: string): {
     if (srcMatch && srcMatch[1]) {
       stringToAnalyze = srcMatch[1];
     }
+  }
+
+  // Check if it's a direct HTML5 video (mp4, webm, m4v, ogg, blob)
+  const isDirect = /\.(mp4|webm|m4v|ogg|mov)(\?.*)?$/i.test(stringToAnalyze) || stringToAnalyze.startsWith('blob:') || stringToAnalyze.startsWith('data:video');
+  if (isDirect) {
+    return {
+      videoId: null,
+      embedUrl: stringToAnalyze,
+      directUrl: stringToAnalyze,
+      startTime: null,
+      isDirectVideo: true,
+      videoSourceUrl: stringToAnalyze
+    };
   }
 
   // Extract start time if present (&t=120 or ?start=120 or &t=2m30s)
@@ -299,11 +314,13 @@ function parseYouTubeSource(input: string): {
       videoId,
       embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1${startParam}`,
       directUrl: `https://www.youtube.com/watch?v=${videoId}${startTime ? `&t=${startTime}s` : ''}`,
-      startTime
+      startTime,
+      isDirectVideo: false,
+      videoSourceUrl: null
     };
   }
 
-  return { videoId: null, embedUrl: null, directUrl: null, startTime: null };
+  return { videoId: null, embedUrl: null, directUrl: null, startTime: null, isDirectVideo: false, videoSourceUrl: null };
 }
 
 const DEFAULT_FALLBACK_POSTER = 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=500&q=80';
@@ -592,9 +609,13 @@ function CustomDisneyPlayer({
 }: CustomDisneyPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const directVideoRef = useRef<HTMLVideoElement>(null);
   const playerRef = useRef<any>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
   const hideControlsTimerRef = useRef<any>(null);
+
+  // Aspect ratio mode: '16/9' (Standard / Original - default, no distortion or cropping), '21/9' (Cinema), '4/3' (Classic), 'fill'
+  const [aspectRatioMode, setAspectRatioMode] = useState<'16/9' | '21/9' | '4/3' | 'fill'>('16/9');
 
   // Playback state
   const [isPlaying, setIsPlaying] = useState(true);
@@ -802,6 +823,16 @@ function CustomDisneyPlayer({
   // Controls actions
   const togglePlay = () => {
     resetControlsTimer();
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      if (isPlaying) {
+        directVideoRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        directVideoRef.current.play().catch(() => {});
+        setIsPlaying(true);
+      }
+      return;
+    }
     if (isPlaying) {
       sendCommand('pauseVideo');
       setIsPlaying(false);
@@ -815,7 +846,11 @@ function CustomDisneyPlayer({
     resetControlsTimer();
     const newTime = Math.max(0, Math.min(duration || 99999, currentTime + seconds));
     setCurrentTime(newTime);
-    sendCommand('seekTo', newTime, true);
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      directVideoRef.current.currentTime = newTime;
+    } else {
+      sendCommand('seekTo', newTime, true);
+    }
     triggerSeekFlash(seconds > 0 ? '+10s' : '-10s');
   };
 
@@ -825,7 +860,11 @@ function CustomDisneyPlayer({
     const pos = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     const targetTime = pos * duration;
     setCurrentTime(targetTime);
-    sendCommand('seekTo', targetTime, true);
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      directVideoRef.current.currentTime = targetTime;
+    } else {
+      sendCommand('seekTo', targetTime, true);
+    }
   };
 
   const handleScrubberMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -839,6 +878,10 @@ function CustomDisneyPlayer({
 
   const handleVolumeChange = (newVol: number) => {
     setVolume(newVol);
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      directVideoRef.current.volume = newVol / 100;
+      directVideoRef.current.muted = newVol === 0;
+    }
     if (newVol === 0) {
       setIsMuted(true);
       sendCommand('mute');
@@ -852,6 +895,13 @@ function CustomDisneyPlayer({
   };
 
   const toggleMute = () => {
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      const willMute = !isMuted;
+      setIsMuted(willMute);
+      directVideoRef.current.muted = willMute;
+      if (!willMute) directVideoRef.current.volume = (volume || 50) / 100;
+      return;
+    }
     if (isMuted) {
       setIsMuted(false);
       sendCommand('unMute');
@@ -864,7 +914,11 @@ function CustomDisneyPlayer({
 
   const handleSpeedSelect = (rate: number) => {
     setPlaybackSpeed(rate);
-    sendCommand('setPlaybackRate', rate);
+    if (parsed.isDirectVideo && directVideoRef.current) {
+      directVideoRef.current.playbackRate = rate;
+    } else {
+      sendCommand('setPlaybackRate', rate);
+    }
     setShowSettingsModal(false);
   };
 
@@ -967,21 +1021,74 @@ function CustomDisneyPlayer({
         <div className="w-[80vw] h-[60vh] bg-blue-600/10 rounded-full blur-[140px] transform scale-110" />
       </div>
 
-      {/* Main Video Screen Container: Crops and isolates the YouTube embed */}
-      <div className="w-full h-full relative flex items-center justify-center bg-black overflow-hidden">
-        {parsed.videoId ? (
-          <div className="w-full h-full relative flex items-center justify-center overflow-hidden">
-            {/* The YouTube iframe is scaled & clipped: top 14% and bottom 14% are cropped outside the frame */}
-            {/* pointer-events-none ensures YouTube NEVER receives hover or click events, so YouTube controls/overlays NEVER show */}
-            <iframe
-              id="disney-yt-iframe"
-              ref={iframeRef}
-              src={`https://www.youtube-nocookie.com/embed/${parsed.videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}${parsed.startTime ? `&start=${parsed.startTime}` : ''}`}
-              title={video.title}
-              className="w-[106%] h-[128%] -top-[14%] -left-[3%] absolute border-0 pointer-events-none select-none"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-              allowFullScreen
-            />
+      {/* Main Video Screen Container: Preserves original aspect ratio without distortion or cropping */}
+      <div className="w-full h-full relative flex items-center justify-center bg-black overflow-hidden select-none">
+        {parsed.videoId || (parsed.isDirectVideo && parsed.videoSourceUrl) ? (
+          <div
+            className="relative flex items-center justify-center transition-all duration-300"
+            style={{
+              width: '100%',
+              height: '100%',
+              maxWidth:
+                aspectRatioMode === '21/9'
+                  ? 'min(100vw, calc(100vh * (21 / 9)))'
+                  : aspectRatioMode === '4/3'
+                  ? 'min(100vw, calc(100vh * (4 / 3)))'
+                  : aspectRatioMode === 'fill'
+                  ? '100%'
+                  : 'min(100vw, calc(100vh * (16 / 9)))',
+              maxHeight:
+                aspectRatioMode === '21/9'
+                  ? 'min(100vh, calc(100vw * (9 / 21)))'
+                  : aspectRatioMode === '4/3'
+                  ? 'min(100vh, calc(100vw * (3 / 4)))'
+                  : aspectRatioMode === 'fill'
+                  ? '100%'
+                  : 'min(100vh, calc(100vw * (9 / 16)))',
+              aspectRatio:
+                aspectRatioMode === 'fill'
+                  ? 'unset'
+                  : aspectRatioMode === '21/9'
+                  ? '21 / 9'
+                  : aspectRatioMode === '4/3'
+                  ? '4 / 3'
+                  : '16 / 9',
+            }}
+          >
+            {parsed.isDirectVideo && parsed.videoSourceUrl ? (
+              <video
+                ref={directVideoRef}
+                src={parsed.videoSourceUrl}
+                className="w-full h-full object-contain absolute inset-0 select-none bg-black"
+                autoPlay
+                playsInline
+                onTimeUpdate={(e) => {
+                  const v = e.currentTarget;
+                  setCurrentTime(v.currentTime);
+                  if (v.duration && !isNaN(v.duration)) setDuration(v.duration);
+                }}
+                onProgress={(e) => {
+                  const v = e.currentTarget;
+                  if (v.buffered.length > 0 && v.duration > 0) {
+                    setBufferedFraction(v.buffered.end(v.buffered.length - 1) / v.duration);
+                  }
+                }}
+                onWaiting={() => setIsBuffering(true)}
+                onPlaying={() => { setIsBuffering(false); setIsPlaying(true); }}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => { setIsPlaying(false); setShowNextUpCard(true); }}
+              />
+            ) : (
+              <iframe
+                id="disney-yt-iframe"
+                ref={iframeRef}
+                src={`https://www.youtube-nocookie.com/embed/${parsed.videoId}?autoplay=1&controls=0&modestbranding=1&rel=0&iv_load_policy=3&disablekb=1&fs=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}${parsed.startTime ? `&start=${parsed.startTime}` : ''}`}
+                title={video.title}
+                className="w-full h-full absolute inset-0 border-0 pointer-events-none select-none bg-black"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            )}
 
             {/* Transparent click/double-click layer on top of video */}
             <div 
@@ -1299,6 +1406,22 @@ function CustomDisneyPlayer({
                 </button>
               )}
 
+              {/* Aspect Ratio Toggle Button */}
+              <button
+                onClick={() => {
+                  const modes: ('16/9' | '21/9' | '4/3' | 'fill')[] = ['16/9', '21/9', '4/3', 'fill'];
+                  const curIdx = modes.indexOf(aspectRatioMode);
+                  const next = modes[(curIdx + 1) % modes.length];
+                  setAspectRatioMode(next);
+                  triggerSeekFlash(`Aspecto: ${next === '16/9' ? '16:9 Original' : next === '21/9' ? '21:9 Cine' : next === '4/3' ? '4:3 Clásico' : 'Rellenar'}`);
+                }}
+                className="hidden sm:flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-gray-200 hover:text-white transition border border-white/10"
+                title={`Relación de aspecto: ${aspectRatioMode}. Haz clic para cambiar.`}
+              >
+                <MonitorPlay size={14} className="text-cyan-400" />
+                <span className="text-[10px] font-mono font-bold">{aspectRatioMode === '16/9' ? '16:9 (Original)' : aspectRatioMode === '21/9' ? '21:9' : aspectRatioMode === '4/3' ? '4:3' : 'FILL'}</span>
+              </button>
+
               {/* Fullscreen Toggle */}
               <button
                 onClick={toggleFullscreen}
@@ -1419,6 +1542,34 @@ function CustomDisneyPlayer({
                 <p className="text-[10px] text-gray-400">4K Ultra HD • HDR10 • Dolby Vision</p>
               </div>
               <Sparkles size={16} className="text-cyan-400" />
+            </div>
+          </div>
+
+          {/* Aspect Ratio Selector */}
+          <div className="space-y-2 pt-2 border-t border-gray-800">
+            <div className="flex items-center justify-between">
+              <span className="text-gray-400 font-semibold block">Relación de Aspecto:</span>
+              <span className="text-[10px] text-cyan-400 font-bold">{aspectRatioMode === '16/9' ? 'Original (16:9)' : aspectRatioMode === '21/9' ? 'Cine (21:9)' : aspectRatioMode === '4/3' ? 'Clásico (4:3)' : 'Rellenar'}</span>
+            </div>
+            <div className="grid grid-cols-2 gap-1.5">
+              {[
+                { id: '16/9', label: '16:9 (Original)', desc: 'Sin recorte ni distorsión' },
+                { id: '21/9', label: '21:9 (Cine)', desc: 'Ultra panorámico' },
+                { id: '4/3', label: '4:3 (Clásico)', desc: 'Formato clásico' },
+                { id: 'fill', label: 'Rellenar Pantalla', desc: 'Ajuste forzado' }
+              ].map(item => (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    setAspectRatioMode(item.id as any);
+                    triggerSeekFlash(`Aspecto: ${item.label}`);
+                  }}
+                  className={`p-2 rounded-xl text-left transition border ${aspectRatioMode === item.id ? 'bg-cyan-500/20 border-cyan-400 text-white shadow' : 'bg-white/5 border-white/10 hover:bg-white/10 text-gray-300'}`}
+                >
+                  <p className="font-bold text-xs">{item.label}</p>
+                  <p className="text-[9px] text-gray-400">{item.desc}</p>
+                </button>
+              ))}
             </div>
           </div>
         </div>
