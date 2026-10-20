@@ -628,6 +628,7 @@ function CustomDisneyPlayer({
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [showRemainingTime, setShowRemainingTime] = useState(false);
   const [hasEmbedError, setHasEmbedError] = useState(false);
+  const [hasStartedPlaying, setHasStartedPlaying] = useState(false);
 
   // HUD & Modals state
   const [showControls, setShowControls] = useState(true);
@@ -724,6 +725,7 @@ function CustomDisneyPlayer({
             if (data.info.playerState === 1) {
               setIsPlaying(true);
               setIsBuffering(false);
+              setHasStartedPlaying(true);
             } else if (data.info.playerState === 2) {
               setIsPlaying(false);
               setIsBuffering(false);
@@ -732,6 +734,8 @@ function CustomDisneyPlayer({
             } else if (data.info.playerState === 0) {
               setIsPlaying(false);
               setShowNextUpCard(true);
+              sendCommand('seekTo', 0, true);
+              sendCommand('pauseVideo');
             }
           }
           if (typeof data.info.videoLoadedFraction === 'number') {
@@ -754,7 +758,10 @@ function CustomDisneyPlayer({
       if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
         try {
           const cur = playerRef.current.getCurrentTime();
-          if (typeof cur === 'number') setCurrentTime(cur);
+          if (typeof cur === 'number') {
+            setCurrentTime(cur);
+            if (cur > 0.2) setHasStartedPlaying(true);
+          }
           const dur = playerRef.current.getDuration();
           if (typeof dur === 'number' && dur > 0) setDuration(dur);
           const buf = playerRef.current.getVideoLoadedFraction();
@@ -792,6 +799,7 @@ function CustomDisneyPlayer({
                 if (e.data === 1) {
                   setIsPlaying(true);
                   setIsBuffering(false);
+                  setHasStartedPlaying(true);
                 } else if (e.data === 2) {
                   setIsPlaying(false);
                   setIsBuffering(false);
@@ -800,6 +808,10 @@ function CustomDisneyPlayer({
                 } else if (e.data === 0) {
                   setIsPlaying(false);
                   setShowNextUpCard(true);
+                  try {
+                    e.target.seekTo(0, true);
+                    e.target.pauseVideo();
+                  } catch {}
                 }
               },
               onError: () => {
@@ -1025,7 +1037,7 @@ function CustomDisneyPlayer({
       <div className="w-full h-full relative flex items-center justify-center bg-black overflow-hidden select-none">
         {parsed.videoId || (parsed.isDirectVideo && parsed.videoSourceUrl) ? (
           <div
-            className="relative flex items-center justify-center transition-all duration-300"
+            className="relative flex items-center justify-center transition-all duration-300 overflow-hidden shadow-2xl"
             style={{
               width: '100%',
               height: '100%',
@@ -1066,6 +1078,7 @@ function CustomDisneyPlayer({
                   const v = e.currentTarget;
                   setCurrentTime(v.currentTime);
                   if (v.duration && !isNaN(v.duration)) setDuration(v.duration);
+                  if (v.currentTime > 0.2) setHasStartedPlaying(true);
                 }}
                 onProgress={(e) => {
                   const v = e.currentTarget;
@@ -1074,7 +1087,7 @@ function CustomDisneyPlayer({
                   }
                 }}
                 onWaiting={() => setIsBuffering(true)}
-                onPlaying={() => { setIsBuffering(false); setIsPlaying(true); }}
+                onPlaying={() => { setIsBuffering(false); setIsPlaying(true); setHasStartedPlaying(true); }}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => { setIsPlaying(false); setShowNextUpCard(true); }}
               />
@@ -1090,7 +1103,26 @@ function CustomDisneyPlayer({
               />
             )}
 
-            {/* Transparent click/double-click layer on top of video */}
+            {/* Initial Cinema Preloader Splash */}
+            {!hasStartedPlaying && (
+              <div className="absolute inset-0 z-20 bg-black flex flex-col items-center justify-center pointer-events-none transition-opacity duration-500">
+                <img
+                  src={getVideoBanner(video)}
+                  alt={video.title}
+                  className="w-full h-full object-cover opacity-35 blur-[2px] absolute inset-0"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/90" />
+                <div className="relative z-10 flex flex-col items-center space-y-4">
+                  <div className="w-14 h-14 rounded-full border-4 border-blue-500/20 border-t-cyan-400 animate-spin shadow-[0_0_25px_rgba(56,189,248,0.6)]" />
+                  <div className="text-center space-y-1">
+                    <span className="text-[10px] font-black uppercase tracking-widest text-cyan-400">DISNEY+ PLAYER</span>
+                    <h3 className="text-white text-base font-black tracking-tight drop-shadow">{video.title}</h3>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Transparent click/double-click layer on top of video - intercepts all clicks to keep YouTube hidden */}
             <div 
               onClick={togglePlay}
               onDoubleClick={toggleFullscreen}
