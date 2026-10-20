@@ -103,7 +103,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'Los viajes de un cazarrecompensas solitario en los confines de la galaxia, lejos de la autoridad de la Nueva República.',
     bannerUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=aOC8E8z_ifw',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
     featured: true,
     trending: true
   },
@@ -119,7 +119,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'El voluble villano Loki reanuda su papel como el Dios del Engaño en una emocionante aventura que desafía las líneas temporales del multiverso.',
     bannerUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1607604276583-eef5d076aa5f?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=nTrB1Bw6yMo',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
     featured: true,
     trending: true
   },
@@ -135,7 +135,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'Jake Sully vive con su nueva familia formada en el planeta Pandora. Una amenaza conocida regresa para acabar con lo que se había empezado.',
     bannerUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=d9MyW72ELq0',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
     featured: true,
     trending: false
   },
@@ -151,7 +151,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'Chris Hemsworth pone a prueba el potencial del cuerpo humano para vivir mejor durante más tiempo a través de hazañas extremas.',
     bannerUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=s83-z0yI5jY',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4',
     featured: false,
     trending: true
   },
@@ -167,7 +167,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'En una ciudad donde los residentes de fuego, agua, tierra y aire viven juntos, una joven fogosa y un chico que se deja llevar descubren cuánto tienen en común.',
     bannerUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=hXzcyx9V0xw',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
     featured: true,
     trending: true
   },
@@ -183,7 +183,7 @@ const DEFAULT_VIDEOS: VideoItem[] = [
     description: 'Ambientada tras la caída del Imperio, Ahsoka investiga una amenaza emergente para una galaxia vulnerable junto a sus antiguos aliados.',
     bannerUrl: 'https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=1200&q=80',
     posterUrl: 'https://images.unsplash.com/photo-1534447677768-be436bb09401?auto=format&fit=crop&w=500&q=80',
-    youtubeUrl: 'https://www.youtube.com/watch?v=J_1EXWNETiI',
+    youtubeUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackSeeTheWorld.mp4',
     featured: false,
     trending: true
   }
