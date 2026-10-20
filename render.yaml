@@ -1,0 +1,11 @@
+# Render Blueprint Specification for Disney+ Stream Player
+services:
+  - type: web
+    name: disney-plus-player
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
