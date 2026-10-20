@@ -1103,6 +1103,16 @@ function CustomDisneyPlayer({
               />
             )}
 
+            {/* Cinematic Edge Blur Vignette: covers YouTube edges with a frosted blur gradient without touching the video center */}
+            {!parsed.isDirectVideo && (
+              <>
+                <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-b from-black via-black/80 to-transparent pointer-events-none z-10 backdrop-blur-[6px]" />
+                <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none z-10 backdrop-blur-[6px]" />
+                <div className="absolute top-0 bottom-0 left-0 w-10 bg-gradient-to-r from-black via-black/80 to-transparent pointer-events-none z-10 backdrop-blur-[6px]" />
+                <div className="absolute top-0 bottom-0 right-0 w-10 bg-gradient-to-l from-black via-black/80 to-transparent pointer-events-none z-10 backdrop-blur-[6px]" />
+              </>
+            )}
+
             {/* Initial Cinema Preloader Splash */}
             {!hasStartedPlaying && (
               <div className="absolute inset-0 z-20 bg-black flex flex-col items-center justify-center pointer-events-none transition-opacity duration-500">
